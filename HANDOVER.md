@@ -10,10 +10,10 @@
 
 | もの | 場所 |
 |---|---|
-| 本番サイト | https://yamadachimney.github.io/3RD-shift/ |
-| LINE固定用URL | https://yamadachimney.github.io/3RD-shift/?openExternalBrowser=1&v=1 （画像を変えたら `v=` を上げる） |
-| テスト版 | https://yamadachimney.github.io/3RD-shift/beta/ （本番と同じDB） |
-| GitHub | `yamadachimney/3RD-shift`（main → GitHub Pages、ルート配信） |
+| 本番サイト | https://yamadachimney.github.io/3rd-shift/ |
+| LINE固定用URL | https://yamadachimney.github.io/3rd-shift/?openExternalBrowser=1&v=1 （画像を変えたら `v=` を上げる） |
+| テスト版 | https://yamadachimney.github.io/3rd-shift/beta/ （本番と同じDB） |
+| GitHub | `yamadachimney/3rd-shift`（main → GitHub Pages、ルート配信） |
 | Firebase | プロジェクト `rd-shift`（表示名 3rd-shift、Sparkプラン＝無料） |
 | Realtime Database | `https://rd-shift-default-rtdb.asia-southeast1.firebasedatabase.app`（シンガポール） |
 | 認証 | 匿名ログイン（スタッフ、スマホごと）＋ メール/パスワード（オーナー共通アカウント） |
