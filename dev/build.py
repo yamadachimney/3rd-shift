@@ -7,7 +7,7 @@ body=p1[p1.index('<div class="app"'):]
 order=['a1.js','a2.js','a3.js','a4.js','a5.js']   # a5 に起動処理がある
 js=''.join(open(SRC+'/'+f).read() for f in order)
 FB='https://www.gstatic.com/firebasejs/10.12.2/'
-URL='https://yamadachimney.github.io/3rd-shift/'
+URL='https://yamadachimney.github.io/3RD-shift/'
 html=f'''<!DOCTYPE html>
 <html lang="ja">
 <head>
