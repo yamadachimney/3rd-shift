@@ -6,14 +6,16 @@ function buildView(){
     h('div',{class:'row'},[h('button',{class:'btn primary',onclick:()=>{S.tab='set';render()},text:'設定を開く'})])]));return h('div',{class:'col'},kids)}
   kids.push(periodBar());
   kids.push(phaseCard(p));
-  kids.push(submitCard(p));
+  const nc=notifyCard(p);if(nc)kids.push(nc);
+  if(p.phase!=='fixed')kids.push(submitCard(p));
+  kids.push(eventsCard());
   kids.push(h('div',{class:'mhead'},[h('h2',{class:'sec',text:'シフト表'}),h('div',{class:'row'},[
     h('button',{class:'btn sm',onclick:fillFromWishes,text:'○の希望をそのまま入れる'}),
     h('button',{class:'btn sm',onclick:copyLine,text:'LINE用にコピー'})])]));
-  kids.push(h('p',{class:'note',text:'マスを押すと入れる・外すができます。上の小さい字が本人の希望、色つきが入れたシフト。人数が'+needOf(p)+'人より少ない日は赤になります。'}));
+  kids.push(h('p',{class:'note',text:'マスを押すと入れる・外すができます。上の小さい字が本人の希望、色つきが入れたシフト。人数が'+needOf(p)+'人（イベントで決めた日はその人数）より少ない日は赤になります。'}));
   kids.push(shiftTable(true));
   const any=Object.keys(S.shifts||{}).length;
-  if(any){const a=S.arm==='clr';kids.push(h('div',{class:'row'},[h('button',{class:'btn sm danger',onclick:async()=>{if(!a){S.arm='clr';render();return}S.arm='';const up={};up['shifts/'+S.pid]=null;await put(up,'全部消しました')},text:a?'もう一度押すと全部消す':'入れたシフトを全部消す'})]))}
+  if(any){const a=S.arm==='clr';kids.push(h('div',{class:'row'},[h('button',{class:'btn sm danger',onclick:async()=>{if(!a){S.arm='clr';render();return}S.arm='';const up={};up['shifts/'+S.pid]=null;Object.keys(S.shifts).forEach(d=>Object.keys(S.shifts[d]||{}).forEach(sid=>logShift(up,d,sid,null)));await put(up,'全部消しました')},text:a?'もう一度押すと全部消す':'入れたシフトを全部消す'})]))}
   return h('div',{class:'col'},kids);
 }
 function setPhase(ph,msg){const up={};up['periods/'+S.pid+'/phase']=ph;S.arm='';put(up,msg)}
@@ -27,8 +29,8 @@ function phaseCard(p){
     acts.push(h('button',{class:'btn',onclick:()=>setPhase('making','受付を締め切りました'),text:'受付を締め切る'}))}
   if(ph==='making'){msg='受付は締め切り済み。表を組んだら「確定して公開」を押すと、全員に見えるようになります。';
     acts.push(h('button',{class:'btn',onclick:()=>setPhase('request','受付を再開しました'),text:'受付を再開'}))}
-  if(ph==='request'||ph==='making')acts.push(twice('fix','確定して公開','もう一度押すと公開',()=>setPhase('fixed','公開しました。LINEで知らせてあげてください')));
-  if(ph==='fixed'){msg='全員にシフトが見えています。直すとすぐに反映されます。';acts.push(twice('unfix','公開をやめる（組み中に戻す）','もう一度押すと非公開',()=>setPhase('making','非公開にしました')))}
+  if(ph==='request'||ph==='making')acts.push(twice('fix','確定して公開','もう一度押すと公開',async()=>{const up={};up['periods/'+S.pid+'/phase']='fixed';up['notify/'+S.pid]=null;S.arm='';if(await put(up,'公開しました'))openSendAll(true)}));
+  if(ph==='fixed'){msg='全員にシフトが見えています。直すとすぐに反映されて、下に「知らせていない変更」がたまります。';acts.push(h('button',{class:'btn',onclick:()=>openSendAll(false),text:'1人ずつLINEでシフトを送る'}));acts.push(twice('unfix','公開をやめる（組み中に戻す）','もう一度押すと非公開',()=>setPhase('making','非公開にしました')))}
   return h('div',{class:'card tight'},[h('p',{text:msg}),h('div',{class:'row'},acts)]);
 }
 function submitCard(p){
@@ -41,7 +43,7 @@ function submitCard(p){
 }
 function fillFromWishes(){
   const p=per(),up={};let n=0;
-  datesOf(p).forEach(d=>staffList().forEach(x=>{const w=wishDay(x.id,d);if(w&&w.k==='ok'&&!(S.shifts[d]&&S.shifts[d][x.id])){up['shifts/'+S.pid+'/'+d+'/'+x.id]={s:w.s,e:w.e};n++}}));
+  datesOf(p).forEach(d=>staffList().forEach(x=>{const w=wishDay(x.id,d);if(w&&w.k==='ok'&&!(S.shifts[d]&&S.shifts[d][x.id])){up['shifts/'+S.pid+'/'+d+'/'+x.id]={s:w.s,e:w.e};logShift(up,d,x.id,{s:w.s,e:w.e});n++}}));
   if(!n){toast('入れられる○の希望がありません（もう入っているか、まだ出ていません）');return}
   const go=h('button',{class:'btn primary',text:n+'件入れる',onclick:async()=>{go.disabled=true;if(await put(up,n+'件入れました'))closeSheet();else go.disabled=false}});
   layer(h('div',{class:'sheet'},[h('h3',{text:'○の希望をそのまま入れる'}),
@@ -56,7 +58,7 @@ function openCell(d,sid){
   const save=h('button',{class:'btn primary',text:cur?'この時間に変える':'入れる',onclick:async()=>{
     const sv=+s.value,ev=+e.value;
     if(ev!==LAST&&ev<=sv){err.textContent='終わりははじまりより後にしてください';return}
-    const up={};up['shifts/'+S.pid+'/'+d+'/'+sid]={s:sv,e:ev};
+    const up={};up['shifts/'+S.pid+'/'+d+'/'+sid]={s:sv,e:ev};logShift(up,d,sid,{s:sv,e:ev});
     save.disabled=true;if(await put(up,cur?'変えました':'入れました'))closeSheet();else save.disabled=false;
   }});
   const others=shiftsOn(d).filter(x=>x.sid!==sid);
@@ -68,7 +70,7 @@ function openCell(d,sid){
     h('p',{class:'note',text:others.length?'この日ほかに：'+others.map(x=>nameOf(x.sid)+' '+srng(x.s,x.e)).join('、'):'この日はまだ誰も入っていません'}),
     err,
     h('div',{class:'row',style:'justify-content:flex-end'},[
-      cur?h('button',{class:'btn danger',onclick:async()=>{const up={};up['shifts/'+S.pid+'/'+d+'/'+sid]=null;if(await put(up,'外しました'))closeSheet()},text:'外す'}):null,
+      cur?h('button',{class:'btn danger',onclick:async()=>{const up={};up['shifts/'+S.pid+'/'+d+'/'+sid]=null;logShift(up,d,sid,null);if(await put(up,'外しました'))closeSheet()},text:'外す'}):null,
       h('button',{class:'btn',onclick:closeSheet,text:'閉じる'}),save])];
   layer(h('div',{class:'sheet',role:'dialog','aria-modal':'true'},kids));
 }
@@ -151,7 +153,7 @@ function openPeriod(id){
     err,h('div',{class:'row',style:'justify-content:flex-end'},[h('button',{class:'btn',onclick:closeSheet,text:'キャンセル'}),save])];
   if(!isNew){
     const del=h('button',{class:'btn sm danger',text:'この期間を消す',onclick:async()=>{if(del.dataset.a!=='1'){del.dataset.a='1';del.textContent='もう一度押すと、希望もシフトも全部消えます';return}
-      const up={};up['periods/'+id]=null;up['wishes/'+id]=null;up['shifts/'+id]=null;if(await put(up,'消しました')){closeSheet();S.pid='';lsSet('rd-pid','');pickPid();resub();render()}}});
+      const up={};up['periods/'+id]=null;up['wishes/'+id]=null;up['shifts/'+id]=null;up['notify/'+id]=null;if(await put(up,'消しました')){closeSheet();S.pid='';lsSet('rd-pid','');pickPid();resub();render()}}});
     kids.push(h('div',{class:'row'},[del]));
   }
   layer(h('div',{class:'sheet',role:'dialog','aria-modal':'true'},kids));
@@ -171,4 +173,57 @@ function openAdminLogin(){
     h('p',{class:'note',text:'シフトを組む・スタッフを承認するためのモードです。'}),pin,err,
     h('div',{class:'row',style:'justify-content:flex-end'},[h('button',{class:'btn',onclick:closeSheet,text:'キャンセル'}),go])]));
   pin.focus();
+}
+
+/* ---------- LINEで個人に知らせる ----------
+   確定したあとにシフトを変えると notify/<期間>/<スタッフ>/<日付> = {b:前, a:後} がたまる。
+   「送る」を押すと LINE が開いて文が入った状態になる（送る相手はLINEの画面で選ぶ） */
+function stxt(x){return x?rng(x.s,x.e):'休み'}
+function logShift(up,d,sid,after){
+  if(phaseOf(S.pid)!=='fixed')return;
+  const cur=S.shifts[d]&&S.shifts[d][sid]||null,old=S.notify[sid]&&S.notify[sid][d];
+  const b=old?old.b:stxt(cur),a=stxt(after);
+  up['notify/'+S.pid+'/'+sid+'/'+d]=b===a?null:{b:b,a:a};
+}
+function lineHref(t){return 'https://line.me/R/share?text='+encodeURIComponent(t)}
+function changeText(sid){
+  const ch=S.notify[sid]||{},L=[nameOf(sid)+'さん','【3RD シフト変更】'];
+  Object.keys(ch).sort().forEach(d=>L.push(dl(d)+'　'+ch[d].b+' → '+ch[d].a));
+  L.push('','最新のシフトはこちら',SITE);return L.join('\n');
+}
+function scheduleText(sid){
+  const p=per(),L=[nameOf(sid)+'さん','【3RD シフト】'+plabel(p)+' が決まりました'];
+  const mine=datesOf(p).filter(d=>S.shifts[d]&&S.shifts[d][sid]);
+  if(mine.length)mine.forEach(d=>{const x=S.shifts[d][sid];L.push(dl(d)+'　'+rng(x.s,x.e)+(eventsOn(d).length?'（'+eventsOn(d).map(e=>e.name).join('・')+'）':''))});
+  else L.push('この期間はシフトが入っていません');
+  L.push('','シフト表はこちら',SITE);return L.join('\n');
+}
+function sendBtn(label,text,after){
+  return h('a',{class:'btn sm primary line',href:lineHref(text),target:'_blank',rel:'noopener',onclick:()=>{if(after)setTimeout(after,300)}},[label]);
+}
+function notifyCard(p){
+  if(!p||p.phase!=='fixed')return null;
+  const sids=Object.keys(S.notify||{}).filter(sid=>Object.keys(S.notify[sid]||{}).length);
+  if(!sids.length)return null;
+  return h('div',{class:'card alert'},[h('h2',{text:'知らせていない変更（'+sids.length+'人）'}),
+    h('p',{text:'「LINEで送る」を押すとLINEが開いて文が入っています。送る相手にその人を選んで送信してください。押したらこの一覧から消えます。'}),
+    h('div',{class:'list'},sids.map(sid=>{const ch=S.notify[sid];
+      return h('div',{class:'li'},[h('div',{},[h('div',{class:'nm',text:nameOf(sid)}),
+          h('div',{class:'meta'},Object.keys(ch).sort().map(d=>h('div',{text:dl(d)+'　'+ch[d].b+' → '+ch[d].a})))]),
+        h('div',{class:'acts'},[sendBtn('LINEで送る',changeText(sid),()=>{const up={};up['notify/'+S.pid+'/'+sid]=null;put(up,nameOf(sid)+' さんの分を送ったことにしました')}),
+          h('button',{class:'btn sm',onclick:()=>{const up={};up['notify/'+S.pid+'/'+sid]=null;put(up,'消しました')},text:'送らない'})])]);
+    }))]);
+}
+function openSendAll(justFixed){
+  const st=staffList().filter(x=>!x.off),sent=new Set();
+  const box=h('div',{class:'list'});
+  const draw=()=>box.replaceChildren(...st.map(x=>{
+    const n=datesOf(per()).filter(d=>S.shifts[d]&&S.shifts[d][x.id]).length;
+    return h('div',{class:'li'},[h('div',{},[h('div',{class:'nm',text:x.name+(sent.has(x.id)?'　✓':'')}),h('div',{class:'meta',text:n+'日'})]),
+      h('div',{class:'acts'},[sendBtn(sent.has(x.id)?'もう一度送る':'LINEで送る',scheduleText(x.id),()=>{sent.add(x.id);draw()})])]);
+  }));
+  draw();
+  layer(h('div',{class:'sheet',role:'dialog','aria-modal':'true'},[h('h3',{text:justFixed?'公開しました':'1人ずつシフトを送る'}),
+    h('p',{class:'note',text:'その人のシフトだけが入った文で、LINEが開きます。送る相手にその人を選んで送信してください。グループにまとめて送るなら、表の下の「LINE用にコピー」が使えます。'}),
+    box,h('div',{class:'row',style:'justify-content:flex-end'},[h('button',{class:'btn',onclick:closeSheet,text:'閉じる'})])]));
 }

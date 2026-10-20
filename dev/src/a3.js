@@ -48,14 +48,15 @@ function periodBar(){
 
 /* ---------- シフト表（日付 × スタッフ） ---------- */
 function shiftTable(owner){
-  const p=per(),days=datesOf(p),st=staffList(),need=needOf(p),t=bizToday();
+  const p=per(),days=datesOf(p),st=staffList(),t=bizToday();
   // 期間中にシフトか希望がある、もう表示しない人も列に出す
   Object.keys(S.staff).forEach(id=>{if(S.staff[id].off&&!st.some(x=>x.id===id)&&(days.some(d=>S.shifts[d]&&S.shifts[d][id])||(owner&&S.wishes[id])))st.push(Object.assign({id:id},S.staff[id]))});
   const head=h('tr',{},[h('th',{class:'dcol',text:''})].concat(st.map(x=>h('th',{class:x.id===S.sid?'me':'',text:x.name})),[h('th',{class:'ncol',text:'人数'})]));
   const rows=days.map(d=>{
     const dw=dowOf(d),n=shiftsOn(d).length;
     const cls=['dcol',dw===0?'sun':dw===6?'sat':'',d===t?'today':''].join(' ');
-    const tds=[h('th',{class:cls},[h('b',{text:md(d)}),h('span',{text:DOW[dw]})])];
+    const evs=eventsOn(d),need=needFor(d);
+    const tds=[h('th',{class:cls+(evs.length?' ev':''),title:evs.map(e=>e.name).join('、')||null},[h('b',{text:md(d)}),h('span',{text:DOW[dw]}),evs.length?h('i',{class:'evmini',text:evs.map(e=>e.name).join('・')}):null])];
     st.forEach(x=>{
       const a=S.shifts[d]&&S.shifts[d][x.id],w=owner?wishDay(x.id,d):null;
       const kids=[];
@@ -76,7 +77,8 @@ function todayCard(){
   if(!p||!(p.start<=t&&t<=p.end))return null;
   if(!S.isAdmin&&p.phase!=='fixed')return null;
   const list=shiftsOn(t),nm=nowMin();
-  return h('div',{class:'card today'},[h('h2',{text:'今日 '+dl(t)+' の出勤'}),
+  const evs=eventsOn(t);
+  return h('div',{class:'card today'},[h('h2',{text:'今日 '+dl(t)+' の出勤'}),evs.length?h('div',{class:'chips'},evs.map(evTag)):null,
     list.length?h('div',{class:'tlist'},list.map(x=>{
       const now=nm>=x.s&&(x.e===LAST||nm<x.e)&&nm>=openOf(p)-120;
       return h('div',{class:'trow'+(x.sid===S.sid?' me':'')},[h('b',{text:nameOf(x.sid)}),h('span',{class:'tm',text:rng(x.s,x.e)}),now?h('span',{class:'chip now',text:'いま'}):null]);
@@ -90,7 +92,7 @@ function myList(){
   const t=bizToday();
   return h('div',{class:'card'},[h('div',{class:'mhead'},[h('h2',{text:'自分のシフト（'+mine.length+'日）'}),
       mine.length?h('button',{class:'btn sm',onclick:()=>downloadIcs(mine),text:'カレンダーに入れる'}):null]),
-    mine.length?h('div',{class:'mylist'},mine.map(x=>h('div',{class:'myrow'+(x.d<t?' past':x.d===t?' today':'')},[h('b',{text:dl(x.d)}),h('span',{class:'tm',text:rng(x.s,x.e)})])))
+    mine.length?h('div',{class:'mylist'},mine.map(x=>h('div',{class:'myrow'+(x.d<t?' past':x.d===t?' today':'')},[h('b',{text:dl(x.d)}),h('span',{class:'tm',text:rng(x.s,x.e)})].concat(eventsOn(x.d).map(evTag)))))
       :h('p',{text:'この期間はシフトが入っていません'})]);
 }
 function downloadIcs(list){
@@ -117,6 +119,7 @@ function shiftView(){
   if(p.phase==='fixed'||S.isAdmin){
     if(S.isAdmin&&p.phase!=='fixed')kids.push(h('p',{class:'note',text:'まだ確定していないので、スタッフにはこの表は見えていません。'}));
     const ml=myList();if(ml)kids.push(ml);
+    kids.push(eventsCard());
     kids.push(h('h2',{class:'sec',text:'みんなのシフト'}));
     kids.push(shiftTable(false));
     kids.push(h('div',{class:'row'},[h('button',{class:'btn sm',onclick:copyLine,text:'LINE用にコピー'})]));
@@ -125,6 +128,7 @@ function shiftView(){
     kids.push(h('div',{class:'card'},[h('h2',{text:p.phase==='request'?'いまは希望を受付中です':'まだシフトは決まっていません'}),
       h('p',{text:p.phase==='request'?(w?'希望は出してあります（'+fmtAt(w.at)+'）。締め切りまでなら直せます。':'まだ希望を出していません。'):'オーナーが組んで確定すると、ここに出ます。'}),
       p.phase==='request'?h('div',{class:'row'},[h('button',{class:'btn primary',onclick:()=>{S.tab='wish';render()},text:w?'希望を見る・直す':'希望を出す'})]):null]));
+    kids.push(eventsCard());
   }
   return h('div',{class:'col'},kids);
 }
@@ -175,8 +179,9 @@ function wishView(){
       e.onchange=()=>{v.e=+e.value;if(v.e!==LAST&&v.e<=v.s){toast('終わりははじまりより後にしてね');v.e=LAST;e.value=String(LAST)}};
       tm=h('div',{class:'wtime'},[s,h('span',{text:'〜'}),e]);
     }
-    return h('div',{class:'wrow'+(v?' '+v.k:'')},[h('div',{class:'wd '+(dw===0?'sun':dw===6?'sat':'')},[h('b',{text:md(d)}),h('span',{text:DOW[dw]})]),seg,tm||h('div',{class:'wtime na',text:v?'':'未回答'})]);
+    return h('div',{class:'wrow'+(v?' '+v.k:'')},[h('div',{class:'wd '+(dw===0?'sun':dw===6?'sat':'')},[h('b',{text:md(d)}),h('span',{text:DOW[dw]})]),seg,tm||h('div',{class:'wtime na',text:v?'':'未回答'})].concat(eventsOn(d).length?[h('div',{class:'wev'},eventsOn(d).map(evTag))]:[]));
   }));
+  if(eventsIn(p).length)kids.push(eventsCard(true));
   kids.push(list);
   const note=h('textarea',{class:'ta',rows:'3',maxlength:'300',placeholder:'例：週2くらいがいい／テスト期間は少なめで',oninput:e=>{D.note=e.target.value}});note.value=D.note;
   kids.push(h('div',{class:'field'},[h('label',{text:'オーナーへのひとこと（任意）'}),note]));
@@ -193,4 +198,57 @@ function wishSummary(w,p){
   return h('div',{class:'card'},[h('h2',{text:'出した希望'}),
     h('div',{class:'mylist'},datesOf(p).map(d=>{const v=w.days&&w.days[d];return h('div',{class:'myrow'},[h('b',{text:dl(d)}),h('span',{class:'tm '+(v?v.k:'na'),text:wishText(v)})])})),
     w.note?h('p',{text:'ひとこと：'+w.note}):null]);
+}
+
+/* ---------- イベント（誰でも登録できる。直せるのは登録した人とオーナー） ---------- */
+function canEditEvent(e){return S.isAdmin||(e&&e.uid===S.uid)}
+function eventsCard(compact){
+  const p=per(),list=eventsIn(p);
+  const kids=[h('div',{class:'mhead'},[h('h2',{text:'イベント'+(list.length?'（'+list.length+'）':'')}),compact?null:h('button',{class:'btn sm',onclick:()=>openEvent(null),text:'＋ イベントを登録'})])];
+  if(list.length)kids.push(h('div',{class:'evlist'},list.map(e=>h('button',{class:'evrow',onclick:()=>openEvent(e.id)},[
+    h('span',{class:'evd',text:e.start===e.end?dl(e.start):dl(e.start)+'〜'+dl(e.end)}),
+    h('span',{class:'evb'},[h('b',{text:e.name}),e.note?h('span',{text:e.note}):null,
+      h('span',{class:'evm',text:[typeof e.need==='number'?'この日は'+e.need+'人':'',e.who?e.who+' が登録':''].filter(Boolean).join('　')})])]))));
+  else if(!compact)kids.push(h('p',{text:'この期間のイベントはまだありません。忙しくなりそうな日を入れておくと、みんなの表に出ます。'}));
+  return h('div',{class:'card tight'},kids);
+}
+function openEvent(id){
+  const x=id?S.events[id]:null,isNew=!x,p=per(),can=isNew||canEditEvent(x);
+  if(!can){
+    layer(h('div',{class:'sheet'},[h('h3',{text:x.name}),h('p',{class:'note',text:(x.start===x.end?dl(x.start):dl(x.start)+'〜'+dl(x.end))+(x.who?'　'+x.who+' が登録':'')}),
+      x.note?h('p',{text:x.note}):null,typeof x.need==='number'?h('p',{class:'note',text:'この日は'+x.need+'人'}):null,
+      h('p',{class:'note',text:'直したいときは、登録した人かオーナーにお願いしてね。'}),
+      h('div',{class:'row',style:'justify-content:flex-end'},[h('button',{class:'btn',onclick:closeSheet,text:'閉じる'})])]));
+    return;
+  }
+  const t=bizToday(),def=p&&p.start>t?p.start:t;
+  const name=h('input',{type:'text',maxlength:'30',value:x?x.name:'',placeholder:'例：ハロウィンイベント'});
+  const start=h('input',{type:'date',value:x?x.start:def});
+  const end=h('input',{type:'date',value:x?x.end:def});
+  start.addEventListener('change',()=>{if(!end.value||end.value<start.value)end.value=start.value});
+  const note=h('textarea',{class:'ta',rows:'2',maxlength:'200',placeholder:'例：仮装OK、20時から仕込み'});note.value=x&&x.note||'';
+  const need=h('input',{type:'number',min:'0',max:'20',inputmode:'numeric',style:'width:5em',value:x&&typeof x.need==='number'?String(x.need):'',placeholder:'—'});
+  const err=h('div',{class:'err',role:'alert'});
+  const save=h('button',{class:'btn primary',text:isNew?'登録する':'保存',onclick:async()=>{
+    if(!name.value.trim()){err.textContent='イベントの名前を入れてください';name.focus();return}
+    if(!start.value||!end.value){err.textContent='日にちを入れてください';return}
+    if(end.value<start.value){err.textContent='終わりの日がはじまりより前になっています';return}
+    const o={uid:x?x.uid:(S.isAdmin?FBX.adminAuth.currentUser.uid:S.uid),name:name.value.trim(),start:start.value,end:end.value,
+      who:x?(x.who||''):(S.isAdmin?'オーナー':nameOf(S.sid)),createdAt:x?x.createdAt:firebase.database.ServerValue.TIMESTAMP};
+    if(note.value.trim())o.note=note.value.trim();
+    if(S.isAdmin){if(need.value!==''){o.need=Math.max(0,Math.min(20,parseInt(need.value,10)||0))}}
+    else if(x&&typeof x.need==='number')o.need=x.need;
+    const eid=id||newKey('events'),up={};up['events/'+eid]=o;
+    save.disabled=true;if(await put(up,isNew?'イベントを登録しました':'保存しました'))closeSheet();else save.disabled=false;
+  }});
+  const kids=[h('h3',{text:isNew?'イベントを登録':'イベント'}),
+    h('div',{class:'field'},[h('label',{text:'名前'}),name]),
+    h('div',{class:'two'},[h('div',{class:'field'},[h('label',{text:'はじまり'}),start]),h('div',{class:'field'},[h('label',{text:'終わり（1日だけなら同じ日）'}),end])]),
+    h('div',{class:'field'},[h('label',{text:'メモ（任意）'}),note]),
+    S.isAdmin?h('div',{class:'field'},[h('label',{text:'この日に必要な人数（空ならいつもどおり）'}),need]):null,
+    err];
+  const del=x?h('button',{class:'btn danger',text:'消す',onclick:async()=>{if(del.dataset.a!=='1'){del.dataset.a='1';del.textContent='もう一度押すと消す';return}const up={};up['events/'+id]=null;if(await put(up,'消しました'))closeSheet()}}):null;
+  kids.push(h('div',{class:'row',style:'justify-content:flex-end'},[del,h('button',{class:'btn',onclick:closeSheet,text:'キャンセル'}),save]));
+  layer(h('div',{class:'sheet',role:'dialog','aria-modal':'true'},kids));
+  if(isNew)name.focus();
 }

@@ -36,6 +36,8 @@ function want(){
       else w.wishes=['wishes/'+S.pid+'/'+S.sid,v=>{S.wishes=v?{[S.sid]:v}:{}}];
       if(S.isAdmin||phaseOf(S.pid)==='fixed')w.shifts=['shifts/'+S.pid,v=>{S.shifts=v||{}}];
     }
+    w.events=['events',v=>{S.events=v||{}}];
+    if(S.isAdmin&&S.pid&&S.periods[S.pid])w.notify=['notify/'+S.pid,v=>{S.notify=v||{}}];
     if(S.mode==='supply')w.sup=['supplies',v=>{S.sup=v||{}}];
   }
   return w;
@@ -64,7 +66,7 @@ function resub(){
   S.loading=!Object.values(SUBS).every(x=>x.got);
 }
 function clearOf(k){
-  if(k==='shifts')S.shifts={};else if(k==='wishes')S.wishes={};else if(k==='sup')S.sup={};
+  if(k==='shifts')S.shifts={};else if(k==='wishes')S.wishes={};else if(k==='sup')S.sup={};else if(k==='events')S.events={};else if(k==='notify')S.notify={};
   else if(k==='periods')S.periods={};else if(k==='joins')S.joins={};else if(k==='members')S.members={};
 }
 function resetSubs(){for(const k of Object.keys(SUBS)){SUBS[k].ref.off();delete SUBS[k]}S.loading=true;resub();render()}

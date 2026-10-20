@@ -179,6 +179,23 @@ button.cbtn:hover{background:var(--line2)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:99px;font-weight:700;z-index:30;max-width:90%;text-align:center}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(24px);opacity:.4}}}
 @media (max-width:480px){.brand h1{font-size:24px}.menubtn{padding:6px 10px;font-size:13px}}
+/* イベント */
+:root{--ev:#7a3fb0;--ev-bg:#f1e8fa;--line-g:#06c755}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--ev:#c79cf0;--ev-bg:#2a2035}}
+:root[data-theme="dark"]{--ev:#c79cf0;--ev-bg:#2a2035}
+.evtag{display:inline-block;font-size:11px;font-weight:700;border-radius:5px;padding:1px 7px;background:var(--ev-bg);color:var(--ev);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+.st .dcol.ev{box-shadow:inset 3px 0 0 var(--ev)}
+.evmini{display:block;font-style:normal;font-size:9.5px;font-weight:700;color:var(--ev);max-width:42px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+.wev{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px;margin-top:-2px}
+.myrow .evtag{margin-left:auto}
+.evlist{display:flex;flex-direction:column;gap:6px}
+.evrow{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start;text-align:left;border:0;border-left:4px solid var(--ev);background:var(--ev-bg);border-radius:8px;padding:8px 10px;width:100%}
+.evd{font-family:var(--f-m);font-size:12px;font-weight:500;color:var(--ev);white-space:nowrap;padding-top:2px}
+.evb{display:flex;flex-direction:column;min-width:0}.evb b{font-size:14px;overflow-wrap:anywhere}.evb span{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.evm{font-size:11.5px!important}
+a.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:var(--ink)}
+a.btn.line{background:var(--line-g);border-color:var(--line-g);color:#fff;font-weight:700}
+.li .meta div{font-family:var(--f-m)}
 </style>
 <div class="app" id="app"></div>
 <div id="layer"></div>

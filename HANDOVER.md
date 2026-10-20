@@ -46,6 +46,8 @@ periods/<pid>      {start, end, phase, open(分), need(1日の人数), deadline?
 wishes/<pid>/<sid> {days/<YYYY-MM-DD> {k: ok|mb|ng, s?, e?}, note, at}   ※ ok=○ mb=△ ng=×
 shifts/<pid>/<YYYY-MM-DD>/<sid> {s, e}
 supplies/<id>      {uid, item, note, who, status: new|seen|ordered|done, createdAt}
+events/<id>        {uid, name, start, end, note?, who, need?, createdAt}   ※ 誰でも登録。直せるのは本人とオーナー。need（その日の必要人数）はオーナーだけ
+notify/<pid>/<sid>/<YYYY-MM-DD> {b: 前, a: 後}   ※ 確定後の変更（まだLINEで知らせていないもの）。オーナーだけ
 ```
 
 ### ルール（`database.rules.json`）
@@ -63,6 +65,12 @@ supplies/<id>      {uid, item, note, who, status: new|seen|ordered|done, created
 - シフト：決まったシフト表（日付×スタッフ）、自分のシフト一覧、カレンダー追加（.ics、1時間前通知）、今日の出勤、LINE用コピー
 - 希望を出す：日ごとに ○ / △ / × と時間（はじまり〜終わり、ラストも可）。「残りを全部○」などのまとめ入力、ひとこと
 - 備品リクエスト（メニューから）
+
+**イベント**：誰でも登録（名前・日付〜日付・メモ）。シフト表の日付の横・希望を出す画面・自分のシフトに出る。オーナーは「この日に必要な人数」も決められる
+
+**LINEで個人に知らせる**（自動送信ではなく、文が入った状態でLINEが開く `https://line.me/R/share?text=`）
+- 確定して公開すると、1人ずつ「あなたのシフト」を送るボタンが出る（あとからも「1人ずつLINEでシフトを送る」で出せる）
+- 確定後にシフトを変えると「知らせていない変更」に人ごとにたまり、「LINEで送る」で前→後の文を送れる
 
 **オーナー**（メニュー →「オーナーログイン」）
 - 組む：受付の開始・締め切り・確定、提出状況とひとこと、表のマスを押して入れる/外す、「○の希望をそのまま入れる」、人数が足りない日は赤

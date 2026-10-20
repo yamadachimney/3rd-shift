@@ -66,6 +66,23 @@ const TS={'.sv':'timestamp'};
   ok(!await up(A,{'supplies/q1/status':'done'}),'A cannot change status');
   ok(await up(O,{'supplies/q1/status':'seen'}),'owner changes status');
   ok(!await up(A,{'supplies/q1':null}),'A cannot delete after seen');
+  // イベント
+  const ev={uid:'uA',name:'ハロウィン',start:'2026-10-31',end:'2026-11-01',who:'あきら',createdAt:TS};
+  ok(!await up(X,{'events/e0':Object.assign({},ev,{uid:'uX'})}),'stranger cannot add event');
+  ok(await up(A,{'events/e1':ev}),'staff adds event');
+  ok(!await up(A,{'events/e2':Object.assign({},ev,{uid:'uB'})}),'cannot add event as someone else');
+  ok(!await up(A,{'events/e3':Object.assign({},ev,{need:4})}),'staff cannot set need');
+  ok(await up(O,{'events/e1/need':4}),'owner sets need');
+  ok(await up(A,{'events/e1':Object.assign({},ev,{name:'ハロウィン仮装',need:4,createdAt:1})}),'staff edits own event keeping need');
+  ok(!await up(A,{'events/e1':Object.assign({},ev,{need:6,createdAt:1})}),'staff cannot change need');
+  ok(!await up(B,{'events/e1':null}),'other staff cannot delete');
+  ok(R(B,'events'),'members read events');
+  ok(await up(A,{'events/e1':null}),'staff deletes own event');
+  ok(await up(O,{'events/e4':Object.assign({},ev,{uid:'OWNER',who:'オーナー'})}),'owner adds event');
+  ok(!await up(A,{'events/e4':null}),'staff cannot delete owner event');
+  // お知らせ
+  ok(await up(O,{'notify/p1/s1/2026-11-03':{b:'休み',a:'22:00〜ラスト'}}),'owner logs change');
+  ok(!await up(A,{'notify/p1/s1':null}),'staff cannot touch notify');ok(!R(A,'notify/p1'),'staff cannot read notify');
   // 解除
   ok(await up(O,{'members/uA':null}),'owner unlinks A');
   ok(!R(A,'periods'),'unlinked A loses access');

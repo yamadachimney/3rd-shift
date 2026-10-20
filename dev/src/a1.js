@@ -8,7 +8,7 @@ const DOW=['日','月','火','水','木','金','土'];
 const PHASES={closed:'準備中',request:'希望募集中',making:'組み中',fixed:'確定'};
 const WK={ok:'○',mb:'△',ng:'×'};
 const WKL={ok:'入れる',mb:'入れなくはない',ng:'入れない'};
-const S={uid:'',isAdmin:false,sid:'',join:null,staff:{},periods:{},pid:'',wishes:{},shifts:{},joins:{},members:{},sup:{},
+const S={uid:'',isAdmin:false,sid:'',join:null,staff:{},periods:{},pid:'',wishes:{},shifts:{},joins:{},members:{},sup:{},events:{},notify:{},
   tab:'shift',mode:'shift',loading:true,fail:'',arm:'',showDone:false,draft:null,showPast:false};
 
 function h(tag,attrs,kids){
@@ -66,6 +66,13 @@ function periodList(){return Object.keys(S.periods||{}).map(id=>Object.assign({i
 function plabel(p){if(!p)return '';return p.name||(md(p.start)+'〜'+md(p.end))}
 function openOf(p){return (p&&typeof p.open==='number')?p.open:22*60}
 function needOf(p){return (p&&typeof p.need==='number')?p.need:2}
+/* イベント：その日にかかっているもの。必要人数はイベントの指定があればそちらを優先（いちばん多いもの） */
+function eventList(){return Object.keys(S.events||{}).map(id=>Object.assign({id:id},S.events[id])).sort((a,b)=>a.start<b.start?-1:a.start>b.start?1:String(a.name).localeCompare(String(b.name)))}
+function eventsOn(d){return eventList().filter(e=>e.start<=d&&d<=e.end)}
+function eventsIn(p){if(!p)return [];return eventList().filter(e=>e.start<=p.end&&p.start<=e.end)}
+function needFor(d){const ns=eventsOn(d).filter(e=>typeof e.need==='number').map(e=>e.need);return ns.length?Math.max.apply(null,ns):needOf(per())}
+function evTag(e){return h('span',{class:'evtag',title:e.name,text:e.name})}
+const SITE='https://yamadachimney.github.io/3rd-shift/?openExternalBrowser=1';
 function wishOf(sid){return S.wishes[sid]||null}
 function wishDay(sid,d){const w=wishOf(sid);return (w&&w.days&&w.days[d])||null}
 function shiftsOn(d){const o=S.shifts[d]||{};return Object.keys(o).filter(sid=>o[sid]).map(sid=>Object.assign({sid:sid},o[sid])).sort((a,b)=>a.s-b.s||((S.staff[a.sid]||{}).ord||0)-((S.staff[b.sid]||{}).ord||0))}
